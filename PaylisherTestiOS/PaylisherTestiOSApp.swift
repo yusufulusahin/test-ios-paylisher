@@ -151,6 +151,23 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+
+        if let actionURLString = userInfo["action"] as? String,
+           !actionURLString.isEmpty,
+           let actionURL = URL(string: actionURLString) {
+            print("[FCM] Action URL bulundu: \(actionURLString)")
+            // App killed state'ten açılırken scene henüz hazır olmayabilir,
+            // 0.5s gecikme ile scene aktif olduktan sonra aç.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                UIApplication.shared.open(actionURL, options: [:]) { success in
+                    print("[FCM] URL açma sonucu: \(success), url: \(actionURLString)")
+                }
+            }
+        } else {
+            print("[FCM] Action URL bulunamadı veya boş: \(userInfo["action"] ?? "nil")")
+        }
+
         completionHandler()
     }
 }

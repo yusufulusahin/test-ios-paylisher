@@ -22,9 +22,6 @@ struct ContentView: View {
                     props["token"] = token
                 }
                 PaylisherSDK.shared.identify(userId, userProperties: props)
-                // SDK skips $identify if already identified with same userId.
-                // Force-update person properties so token/deviceID always reflect current device.
-                PaylisherSDK.shared.capture("$set", userProperties: props)
                 print("[SDK] identify(\(userId))  props: \(props)")
                 activeUserId = userId
                 isLoggedIn = true
