@@ -42,6 +42,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         PaylisherSDK.shared.setup(config)
         PaylisherSDK.shared.register(["deviceID": UIDevice.staticID])
+        CoreDataManager.shared.configure(appGroupIdentifier: "group.com.paylisher.test.ios")
         print("[SDK] Setup ✓  deviceID: \(UIDevice.staticID)")
     }
 
