@@ -10,14 +10,24 @@ struct ContentView: View {
         if isLoggedIn {
             HomeView(userId: activeUserId) {
                 PaylisherSDK.shared.reset()
-                PaylisherSDK.shared.register(["deviceID": UIDevice.staticID])
-                print("[SDK] reset() + register()  deviceID: \(UIDevice.staticID)")
+                // reset() super property'leri siliyor — deviceID ve token'ı yeniden kaydet
+                var resetProps: [String: Any] = ["deviceID": UIDevice.staticID]
+                if let token = UserDefaults.standard.string(forKey: "fcm_token") {
+                    resetProps["token"] = token
+                    resetProps["platform"] = "ios"
+                }
+                PaylisherSDK.shared.register(resetProps)
+                print("[SDK] reset() + register()  props: \(resetProps)")
                 isLoggedIn = false
                 activeUserId = ""
             }
         } else {
             LoginView(userId: $userId) {
-                var props: [String: Any] = ["deviceID": UIDevice.staticID, "platform": "ios"]
+                // Android ile birebir aynı: deviceID + platform + token (varsa)
+                var props: [String: Any] = [
+                    "deviceID": UIDevice.staticID,
+                    "platform": "ios"
+                ]
                 if let token = UserDefaults.standard.string(forKey: "fcm_token") {
                     props["token"] = token
                 }
@@ -101,6 +111,57 @@ struct HomeView: View {
                     eventRow("Ürün Tıklandı", event: "product_click", props: ["product_id": "abc123"])
                     eventRow("Sepete Eklendi", event: "add_to_cart", props: ["product_id": "abc123", "price": "99.9"])
                     eventRow("Ödeme Başlatıldı", event: "checkout_start", props: ["amount": "99.9"])
+                }
+
+                // ─── Multi-SDK push simülasyonu ─────────────────────────────────
+                // "source" field'ı OLMAYAN payload → banka kendi push'u
+                // "source: XSdk" payload → başka bir SDK
+                // Paylisher push'u zaten Swagger üzerinden FCM ile gelir.
+                // Üç akış da AppDelegate'te farklı yollardan handle edilir;
+                // Paylisher forward kodu banka/XSdk akışlarını bozmamalı.
+                Section("Multi-SDK Push Simülasyonu") {
+                    Text("Bu butonlar Paylisher forward kodunu bypass edip her SDK'nın kendi notification yolunu test eder. Faz 1/Faz 2 fark etmeden aynı sonucu vermesi beklenir.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Button {
+                        let txId = "TRX-\(Int(Date().timeIntervalSince1970))"
+                        BankNotificationManager.shared.simulateBankPush(
+                            title: "Para Transferi Alındı",
+                            body: "Hesabınıza 1.250,00 TL EFT yapıldı. (Test)",
+                            txId: txId
+                        )
+                        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+                        logs.append("[\(ts)] BANK push: para transferi")
+                    } label: {
+                        Label("Banka: Para Transferi", systemImage: "banknote.fill")
+                    }
+
+                    Button {
+                        let txId = "AUTH-\(Int(Date().timeIntervalSince1970))"
+                        BankNotificationManager.shared.simulateBankPush(
+                            title: "3D Secure Onay",
+                            body: "Cep telefonunuza gelen kodu giriniz. (Test)",
+                            txId: txId
+                        )
+                        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+                        logs.append("[\(ts)] BANK push: 3D Secure")
+                    } label: {
+                        Label("Banka: 3D Secure", systemImage: "lock.shield.fill")
+                    }
+
+                    Button {
+                        let campaign = "camp-\(Int(Date().timeIntervalSince1970))"
+                        XSdkSimulator.shared.simulateXSdkPush(
+                            title: "Kampanya",
+                            body: "Bu hafta sonu %20 indirim! (XSdk Test)",
+                            campaignId: campaign
+                        )
+                        let ts = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+                        logs.append("[\(ts)] XSDK push: kampanya")
+                    } label: {
+                        Label("X SDK: Kampanya", systemImage: "megaphone.fill")
+                    }
                 }
 
                 if !logs.isEmpty {
