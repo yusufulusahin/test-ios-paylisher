@@ -8,10 +8,17 @@ import FirebaseMessaging
 @main
 struct PaylisherTestiOSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var l10n = LocalizationManager.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(l10n)
+                .environmentObject(DeepLinkRouter.shared)
+                .environment(\.locale, l10n.locale)
+                // Tek satır: custom scheme (onOpenURL) + Universal Link (onContinueUserActivity)
+                // ikisini de SDK'ya yönlendirir.
+                .paylisherDeepLinks()
         }
     }
 }
@@ -48,10 +55,58 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         config.captureScreenViews = true
         config.repeatedIdentifyBehavior = .capture
 
+        // Engage API Pull mode: in-app mesajları SDK ile Engage'den çek (mirrors
+        // dietapp + Android test app). teamId/projectId/sourceId/sdkKey zorunlu değil —
+        // Engage public sdkKey'den (SDK apiKey'i) reverse-resolve eder.
+        // LOCAL: fetchEndpoint = "http://10.0.2.2:1924/v1/push/inapp/fetch"
+        // LAN:   fetchEndpoint = "http://10.254.132.106:1924/v1/push/inapp/fetch"
+        // Test projesi EU/test ortamında (app-eu.paylisher.com) → Engage endpoint'i de EU.
+        let engageConfig = PaylisherEngageInAppConfig(
+            fetchEndpoint: "https://api-eu.paylisher.com/engage/v1/push/inapp/fetch"
+        )
+        engageConfig.autoFetchOnForeground = true
+        engageConfig.maxMessages = 5
+        engageConfig.debugLogging = true
+        config.engageInAppConfig = engageConfig
+
+        // Deeplink config — setup ÖNCESİ set edilir; setup() manager'ı OTOMATİK init eder
+        // (artık ayrı PaylisherDeepLinkManager.shared.initialize çağrısı YOK).
+        let deepLinkConfig = PaylisherDeepLinkConfig()
+        deepLinkConfig.customSchemes = ["paylishertest"]
+        deepLinkConfig.universalLinkDomains = ["link.paylisher.com"]
+        deepLinkConfig.authRequiredDestinations = ["wallet"]
+        deepLinkConfig.debugLogging = true
+        config.deepLinkConfig = deepLinkConfig
+
+        // Deferred deeplink (ilk kurulum attribution) — setup ÖNCESİ config'e yazılmalı.
+        // Host dietapp'te kanıtlanmış pyl.sh; test için 2 saatlik attribution penceresi.
+        config.deferredDeepLinkConfig = PaylisherDeferredDeepLinkConfig()
+            .withEnabled(true)
+            .withAPIHost("https://link-eu.paylisher/v1/deferred-deeplink")
+            .withAttributionWindow(2 * 60 * 60 * 1000)
+            .withIDFA(true)
+            .withDebugLogging(true)
+            .withAutoHandle(true)
+
         PaylisherSDK.shared.setup(config)
         PaylisherSDK.shared.register(["deviceID": UIDevice.staticID])
         CoreDataManager.shared.configure(appGroupIdentifier: "group.com.paylisher.test.ios")
         print("[SDK] Setup ✓  deviceID: \(UIDevice.staticID)")
+
+        // setup() deeplink manager'ı + attribution'ı OTOMATİK hallediyor. Handler için protokol
+        // implement etmeye gerek yok — sadece closure ver:
+        PaylisherSDK.shared.onDeepLink { deepLink, requiresAuth in
+            DeepLinkRouter.shared.handleReceived(deepLink, requiresAuth: requiresAuth)
+        }
+        PaylisherSDK.shared.onDeepLinkRequiresAuth { deepLink, completion in
+            DeepLinkRouter.shared.handleAuthRequired(deepLink, completion: completion)
+        }
+        PaylisherSDK.shared.onDeepLinkFailed { url, error in
+            DeepLinkRouter.shared.handleFailure(url, error: error)
+        }
+
+        // İlk açılışta deferred deeplink kontrolü (ilk kurulumda match aranır).
+        DeepLinkRouter.shared.runDeferredCheck(reset: false)
 
         Messaging.messaging().token { token, error in
             guard let token = token, error == nil else {

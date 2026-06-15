@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "5442A5ZMH8.com.paylisher.test.ios",
+        "paths": [ "/home", "/products", "/products/*", "/wallet", "/profile", "/campaign/*", "/c/*" ]
+      }
+    ]
+  }
+}
