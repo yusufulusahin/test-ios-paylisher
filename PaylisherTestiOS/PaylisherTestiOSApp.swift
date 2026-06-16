@@ -82,7 +82,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Host dietapp'te kanıtlanmış pyl.sh; test için 2 saatlik attribution penceresi.
         config.deferredDeepLinkConfig = PaylisherDeferredDeepLinkConfig()
             .withEnabled(true)
-            .withAPIHost("https://link-eu.paylisher/v1/deferred-deeplink")
+            .withAPIHost("https://link-eu.paylisher.com/v1/deferred-deeplink")
             .withAttributionWindow(2 * 60 * 60 * 1000)
             .withIDFA(true)
             .withDebugLogging(true)
@@ -90,7 +90,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         PaylisherSDK.shared.setup(config)
         PaylisherSDK.shared.register(["deviceID": UIDevice.staticID])
-        CoreDataManager.shared.configure(appGroupIdentifier: "group.com.paylisher.test.ios")
+        CoreDataManager.shared.configure(appGroupIdentifier: "group.com.paylisher.testios")
         print("[SDK] Setup ✓  deviceID: \(UIDevice.staticID)")
 
         // setup() deeplink manager'ı + attribution'ı OTOMATİK hallediyor. Handler için protokol

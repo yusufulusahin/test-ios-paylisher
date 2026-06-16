@@ -3,8 +3,12 @@
     "apps": [],
     "details": [
       {
-        "appID": "5442A5ZMH8.com.paylisher.test.ios",
-        "paths": [ "/home", "/products", "/products/*", "/wallet", "/profile", "/campaign/*", "/c/*" ]
+        "appID": "XK757HMDY9.com.paylisher.testios",
+        "paths": [ "/home*", "/products*", "/wallet*", "/profile*" ]
+      },
+      {
+        "appID": "XK757HMDY9.com.SuleymanAydin.DietApp",
+        "paths": [ "/premium*", "/home*", "/statistic*", "/profile*" ]
       }
     ]
   }
