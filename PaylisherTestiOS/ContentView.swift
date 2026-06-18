@@ -41,7 +41,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Login
+// MARK: - Login (iOS 13: NavigationView + navigationBarTitle/navigationBarItems)
 
 struct LoginView: View {
     @Binding var userId: String
@@ -49,7 +49,7 @@ struct LoginView: View {
     @EnvironmentObject var l10n: LocalizationManager
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             VStack(spacing: 20) {
                 Spacer()
                 Image(systemName: "person.circle.fill")
@@ -61,20 +61,20 @@ struct LoginView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(l10n.t("login_userid_label")).font(.caption).foregroundColor(.secondary)
                     TextField(l10n.t("login_userid_placeholder"), text: $userId)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
                         .keyboardType(.numberPad)
                 }
                 .padding(.horizontal, 32)
 
                 Text("deviceID: \(UIDevice.staticID)")
-                    .font(.caption2).foregroundColor(.gray)
+                    .font(.caption).foregroundColor(.gray)
                     .padding(.horizontal, 32)
 
                 Button {
                     guard !userId.isEmpty else { return }
                     onLogin()
                 } label: {
-                    Label(l10n.t("login_button"), systemImage: "arrow.right.circle.fill")
+                    IconLabel(l10n.t("login_button"), systemImage: "arrow.right.circle.fill")
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(userId.isEmpty ? Color.gray : Color.blue)
@@ -86,12 +86,9 @@ struct LoginView: View {
 
                 Spacer()
             }
-            .navigationTitle(l10n.t("login_nav_title"))
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    LanguageMenu(l10n: l10n)
-                }
-            }
+            .navigationBarTitle(Text(l10n.t("login_nav_title")), displayMode: .inline)
+            .navigationBarItems(trailing: LanguageMenu(l10n: l10n))
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 }

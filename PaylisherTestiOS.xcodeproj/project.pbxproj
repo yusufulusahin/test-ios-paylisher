@@ -20,6 +20,7 @@
 		AA00000A /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00001A /* MainTabView.swift */; };
 		D62A3FF62FD9A48F00BBA324 /* Paylisher in Frameworks */ = {isa = PBXBuildFile; productRef = D62A3FF52FD9A48F00BBA324 /* Paylisher */; };
 		D69206D02FDC1A7500414D78 /* PaylisherNSE.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D69206C92FDC1A7500414D78 /* PaylisherNSE.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D6E646D72FE1624B00BD861D /* Paylisher in Frameworks */ = {isa = PBXBuildFile; productRef = D6E646D62FE1624B00BD861D /* Paylisher */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +94,7 @@
 			files = (
 				D62A3FF62FD9A48F00BBA324 /* Paylisher in Frameworks */,
 				18CB8A252FCD768F007F3341 /* FirebaseMessaging in Frameworks */,
+				D6E646D72FE1624B00BD861D /* Paylisher in Frameworks */,
 				18CB8A232FCD7686007F3341 /* FirebaseCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -174,6 +176,7 @@
 				18CB8A222FCD7686007F3341 /* FirebaseCore */,
 				18CB8A242FCD768F007F3341 /* FirebaseMessaging */,
 				D62A3FF52FD9A48F00BBA324 /* Paylisher */,
+				D6E646D62FE1624B00BD861D /* Paylisher */,
 			);
 			productName = PaylisherTestiOS;
 			productReference = AA000050 /* PaylisherTestiOS.app */;
@@ -230,6 +233,7 @@
 			mainGroup = AA000040;
 			packageReferences = (
 				18CB8A1D2FCD7337007F3341 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				D6E646D52FE1624B00BD861D /* XCRemoteSwiftPackageReference "PAYLISHER-SDK-IOS" */,
 			);
 			productRefGroup = AA000042 /* Products */;
 			projectDirPath = "";
@@ -407,13 +411,18 @@
 				DEVELOPMENT_TEAM = XK757HMDY9;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PaylisherTestiOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.paylisher.testios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -431,13 +440,18 @@
 				DEVELOPMENT_TEAM = XK757HMDY9;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PaylisherTestiOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.paylisher.testios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -461,14 +475,14 @@
 				INFOPLIST_FILE = PaylisherNSE/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PaylisherNSE;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.paylisher.testios.PaylisherNSE;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -499,14 +513,14 @@
 				INFOPLIST_FILE = PaylisherNSE/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PaylisherNSE;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.paylisher.testios.PaylisherNSE;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -561,6 +575,14 @@
 				minimumVersion = 12.14.0;
 			};
 		};
+		D6E646D52FE1624B00BD861D /* XCRemoteSwiftPackageReference "PAYLISHER-SDK-IOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/paylisher/PAYLISHER-SDK-IOS";
+			requirement = {
+				branch = "version-1.8.6";
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -576,6 +598,11 @@
 		};
 		D62A3FF52FD9A48F00BBA324 /* Paylisher */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = Paylisher;
+		};
+		D6E646D62FE1624B00BD861D /* Paylisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D6E646D52FE1624B00BD861D /* XCRemoteSwiftPackageReference "PAYLISHER-SDK-IOS" */;
 			productName = Paylisher;
 		};
 /* End XCSwiftPackageProductDependency section */

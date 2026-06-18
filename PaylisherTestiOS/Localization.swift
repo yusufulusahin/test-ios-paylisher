@@ -63,28 +63,41 @@ final class LocalizationManager: ObservableObject {
     }
 }
 
-// MARK: - Dil seçici menü (🌐)
+// MARK: - iOS 13 uyumlu Label (SwiftUI `Label` iOS 14+; iOS 13 için HStack)
+
+struct IconLabel: View {
+    let title: String
+    let systemImage: String
+    init(_ title: String, systemImage: String) { self.title = title; self.systemImage = systemImage }
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(title)
+        }
+    }
+}
+
+// MARK: - Dil seçici (🌐) — iOS 13: `Menu` yok, ActionSheet kullanılır
 
 struct LanguageMenu: View {
     @ObservedObject var l10n: LocalizationManager
+    @State private var showSheet = false
 
     var body: some View {
-        Menu {
-            ForEach(AppLanguage.allCases) { lang in
-                Button {
-                    l10n.language = lang
-                } label: {
-                    if l10n.language == lang {
-                        Label(lang.displayName(l10n), systemImage: "checkmark")
-                    } else {
-                        Text(lang.displayName(l10n))
-                    }
-                }
-            }
-        } label: {
+        Button { showSheet = true } label: {
             Image(systemName: "globe")
         }
-        .accessibilityLabel(l10n.t("language_menu"))
+        .accessibility(label: Text(l10n.t("language_menu")))
+        .actionSheet(isPresented: $showSheet) {
+            ActionSheet(
+                title: Text(l10n.t("language_menu")),
+                buttons: AppLanguage.allCases.map { lang in
+                    .default(Text(lang.displayName(l10n) + (l10n.language == lang ? "  ✓" : ""))) {
+                        l10n.language = lang
+                    }
+                } + [.cancel()]
+            )
+        }
     }
 }
 

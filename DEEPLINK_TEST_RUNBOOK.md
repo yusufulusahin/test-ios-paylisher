@@ -9,12 +9,13 @@ Paylisher Studio'dan oluşturduğun deeplink'ler somut ekranlara yönlenir.
 
 ## 1) Ne kuruldu
 
-- Akış: **Login → alt tab bar.** Sekmeler: **🏠 Ana Sayfa · 🛍️ Ürünler · 💳 Cüzdan (auth) · 👤 Profil**
+- Akış: **Login → alt tab bar.** Sekmeler: **🏠 Ana Sayfa · 🛍️ Ürünler · 🎁 Kampanyalar · 💳 Cüzdan (auth) · 👤 Profil**
 - **Ürünler iç içe:** Liste → Ürün detayı → Ürün İçeriği (3 seviye).
+- **Kampanyalar iç içe:** Liste → Kampanya detayı → Başvuru (auth-gate'li, en iç). Vakıf Katılım "Çeyiz Hesabı" senaryosundan esinli; firmaların deeplink ile bağlayacağı iniş hedefi.
 - **Cüzdan auth-gate'li:** kilitli; deeplink/giriş ile açılır.
 - Yönlendirme, gelen deeplink **URL'i parse edilerek** yapılır (host + path) → sekme + iç içe yol.
 - Mevcut **event / multi-SDK push** testleri **Ana Sayfa**'da; **deeplink debug log** **Profil → Geliştirici**'de.
-- Scheme `paylishertest` · App-link domain `link.paylisher.com` · auth-gate hedefi `wallet`.
+- Scheme `paylishertest` · App-link domain `link.paylisher.com` · auth-gate hedefi `wallet` + `?auth=required` taşıyan her link (örn. kampanya başvurusu).
 
 ---
 
@@ -60,10 +61,29 @@ override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(
 | `paylishertest://products` | Ürünler (liste) |
 | `paylishertest://products/a` | Ürün A detayı (`a` / `b` / `c`) |
 | `paylishertest://products/a/content` | Ürün A İçeriği (en iç ekran) |
+| `paylishertest://campaigns` | Kampanyalar (liste) |
+| `paylishertest://campaigns/ceyiz` | Çeyiz Hesabı detayı (`ceyiz` / `konut` / `altin` / `cocuk`) |
+| `paylishertest://campaigns/ceyiz/apply` | Çeyiz başvuru — auth-gate'li (en iç ekran) |
 | `paylishertest://wallet` | Cüzdan (önce auth-gate → kilit açılır) |
 | `paylishertest://profile` | Profil |
 
-`products?id=a` (query) de `products/a` ile aynı çalışır. Bilinmeyen host → Ana Sayfa.
+`products?id=a` ve `campaigns?slug=ceyiz` (query) de path biçimiyle aynı çalışır. Bilinmeyen host → Ana Sayfa.
+
+---
+
+## 2b) Firma kampanya deeplink'i 🏢 (kampanya oluşturan firmalar için)
+
+Bir firma Paylisher Studio'da kampanyayı kurunca bir **`keyName`** alır ve deeplink'ine ekler.
+SDK bu `keyName`'i **`campaignData`**'ya resolve eder (Kampanyalar sekmesinde "🎯 Studio'dan çözülen kampanya" banner'ı). Firmanın bağlayacağı tipik link biçimleri:
+
+| Deeplink | Ne yapar |
+|---|---|
+| `paylishertest://campaigns/ceyiz?keyName=CEYIZ2026&source=push` | Çeyiz detayına gider; `keyName` resolve, `source` attribution |
+| `paylishertest://campaigns/ceyiz/apply?auth=required&source=email` | Başvuruya gider; **`auth=required`** giriş yoksa cold-start'ta önce login ister |
+| `paylishertest://campaigns?keyName=CEYIZ2026&source=sms` | Sadece key — SDK resolve eder, banner'da görünür |
+
+Firma-tarafı parametreler (SDK parse eder): **`keyName`/`key`** → kampanya resolve · **`campaign_id`/`campaign`** · **`source`** · **`jid`** · **`auth=required`** → auth-gate.
+Bu linkler app içinde **Profil → Geliştirici → Deeplink Log → 🏢 Firma kampanya deeplink'i** bölümünden tek tıkla denenir.
 
 ---
 
@@ -86,6 +106,10 @@ xcrun simctl openurl booted "paylishertest://home"
 xcrun simctl openurl booted "paylishertest://products"
 xcrun simctl openurl booted "paylishertest://products/a"
 xcrun simctl openurl booted "paylishertest://products/a/content"   # en iç ekrana kadar
+xcrun simctl openurl booted "paylishertest://campaigns"
+xcrun simctl openurl booted "paylishertest://campaigns/ceyiz"      # Çeyiz Hesabı detayı
+xcrun simctl openurl booted "paylishertest://campaigns/ceyiz/apply?auth=required"  # başvuru (auth-gate)
+xcrun simctl openurl booted "paylishertest://campaigns/ceyiz?keyName=CEYIZ2026&source=push"  # firma linki
 xcrun simctl openurl booted "paylishertest://wallet"               # auth-gate
 xcrun simctl openurl booted "paylishertest://profile"
 ```
@@ -106,6 +130,9 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 PKG=com.paylisher.test
 adb shell am start -W -a android.intent.action.VIEW -d "paylishertest://products/a" $PKG
 adb shell am start -W -a android.intent.action.VIEW -d "paylishertest://products/a/content" $PKG
+adb shell am start -W -a android.intent.action.VIEW -d "paylishertest://campaigns/ceyiz" $PKG
+adb shell am start -W -a android.intent.action.VIEW -d "paylishertest://campaigns/ceyiz/apply?auth=required" $PKG
+adb shell am start -W -a android.intent.action.VIEW -d "paylishertest://campaigns/ceyiz?keyName=CEYIZ2026&source=push" $PKG
 adb shell am start -W -a android.intent.action.VIEW -d "paylishertest://wallet" $PKG
 ```
 Log: `adb logcat -s DeepLink:* Paylisher:*`
@@ -120,12 +147,18 @@ açılmaz **hedef ekrana yönlenir** (URL, login sırasında DeepLinkRouter duru
 
 ---
 
-## 6) Auth-gate testi (Cüzdan)
+## 6) Auth-gate testi (Cüzdan + Kampanya başvurusu)
 
 1. `paylishertest://wallet` aç → SDK `requiresAuth` → **Cüzdan kilit ekranı** açılır.
 2. **"Giriş Yap / Kimlik Doğrula"** → kilit açılır, cüzdan içeriği görünür (SDK `completion(true)` → pending tamamlanır).
 3. Cüzdan içindeki **"Kilidi Sıfırla"** ile yeniden test edebilirsin.
 4. Kilitliyken Cüzdan sekmesine elle dokunmak da aynı kilit ekranını gösterir.
+
+**İki auth-gate mekanizması var:**
+- **Destination tabanlı:** `authRequiredDestinations = ["wallet"]` — `wallet` hedefi her zaman auth ister.
+- **Link tabanlı (`?auth=required`):** firmanın işaretlediği herhangi bir link. SDK içinde `isAuthRequired = config.isAuthRequired(destination) || authParamRequired`. Kampanya başvurusu bunu kullanır:
+  - Kapalı uygulamada `paylishertest://campaigns/ceyiz/apply?auth=required` → önce **login** → giriş sonrası doğrudan **Çeyiz → Başvuru** ekranına yönlenir.
+  - Açık (login'li) uygulamada aynı link doğrudan başvuruya gider (re-login yok).
 
 ---
 
@@ -137,7 +170,7 @@ Gerçek OS açılışı için `link.paylisher.com` üzerinde iki dosya yayınlan
 ```json
 { "applinks": { "apps": [], "details": [
   { "appID": "5442A5ZMH8.com.paylisher.test.ios",
-    "paths": ["/home","/products","/products/*","/wallet","/profile","/campaign/*","/c/*"] } ] } }
+    "paths": ["/home","/products","/products/*","/campaigns","/campaigns/*","/wallet","/profile"] } ] } }
 ```
 **Android** → `https://link.paylisher.com/.well-known/assetlinks.json`:
 ```json

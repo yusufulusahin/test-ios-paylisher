@@ -5,23 +5,23 @@ import UIKit
 import FirebaseCore
 import FirebaseMessaging
 
-@main
-struct PaylisherTestiOSApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    @StateObject private var l10n = LocalizationManager.shared
+// MARK: - UIKit lifecycle (iOS 13)
+//
+// SwiftUI `App`/`WindowGroup`/`.paylisherDeepLinks()` iOS 14+ olduğu için iOS 13 hedefinde
+// klasik UIKit yaşam döngüsü kullanılır: `@UIApplicationMain AppDelegate` pencereyi KENDİSİ kurar
+// (scene KULLANILMIYOR — Info.plist'te scene manifest yok). Deeplink forwarding AppDelegate
+// `open`/`continue` metodlarıyla SDK'ya iletilir.
 
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environmentObject(l10n)
-                .environmentObject(DeepLinkRouter.shared)
-                .environment(\.locale, l10n.locale)
-                // Tek satır: custom scheme (onOpenURL) + Universal Link (onContinueUserActivity)
-                // ikisini de SDK'ya yönlendirir.
-                .paylisherDeepLinks()
-        }
+struct RootView: View {
+    @ObservedObject private var l10n = LocalizationManager.shared
+    var body: some View {
+        ContentView()
+            .environmentObject(l10n)
+            .environmentObject(DeepLinkRouter.shared)
+            .environment(\.locale, l10n.locale)
     }
 }
+
 
 // MARK: - AppDelegate
 //
@@ -31,7 +31,10 @@ struct PaylisherTestiOSApp: App {
 // tarafından tek bir noktada (AppDelegate) set edilir. Her gelen push'ta host,
 // payload'a bakarak doğru SDK'ya forward eder.
 
+@UIApplicationMain
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+
+    var window: UIWindow?
 
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
@@ -39,7 +42,27 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         setupPaylisher()
         setupBankSimulators()
         setupNotifications(application)
+
+        // Kök pencere (scene'siz UIKit lifecycle) — SwiftUI kökünü UIHostingController barındırır.
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = UIHostingController(rootView: RootView())
+        self.window = window
+        window.makeKeyAndVisible()
+
         return true
+    }
+
+    // Custom scheme: paylishertest://...  (cold launch'ta da iOS bu metodu çağırır → tek event)
+    // Warm + cold tek giriş noktası; ayrı launchOptions işleme YOK (çift "Deep Link Opened" olmasın).
+    func application(_ app: UIApplication, open url: URL,
+                     options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return PaylisherSDK.shared.handleDeepLink(url)
+    }
+
+    // Universal Link (cold + warm)
+    func application(_ application: UIApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+        return PaylisherSDK.shared.handleUserActivity(userActivity)
     }
 
     // MARK: - Paylisher Setup
@@ -61,19 +84,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // LOCAL: fetchEndpoint = "http://10.0.2.2:1924/v1/push/inapp/fetch"
         // LAN:   fetchEndpoint = "http://10.254.132.106:1924/v1/push/inapp/fetch"
         // Test projesi EU/test ortamında (app-eu.paylisher.com) → Engage endpoint'i de EU.
-        let engageConfig = PaylisherEngageInAppConfig(
-            fetchEndpoint: "https://api-eu.paylisher.com/engage/v1/push/inapp/fetch"
-        )
-        engageConfig.autoFetchOnForeground = true
-        engageConfig.maxMessages = 5
-        engageConfig.debugLogging = true
-        config.engageInAppConfig = engageConfig
+        //let engageConfig = PaylisherEngageInAppConfig(
+          //  fetchEndpoint: "https://api-eu.paylisher.com/engage/v1/push/inapp/fetch"
+        //)
+        //engageConfig.autoFetchOnForeground = true
+        //engageConfig.maxMessages = 5
+        //engageConfig.debugLogging = true
+        //config.engageInAppConfig = engageConfig
 
         // Deeplink config — setup ÖNCESİ set edilir; setup() manager'ı OTOMATİK init eder
         // (artık ayrı PaylisherDeepLinkManager.shared.initialize çağrısı YOK).
         let deepLinkConfig = PaylisherDeepLinkConfig()
         deepLinkConfig.customSchemes = ["paylishertest"]
-        deepLinkConfig.universalLinkDomains = ["link.paylisher.com"]
+        deepLinkConfig.universalLinkDomains = ["link.paylisher.com", "link-eu.paylisher.com","studio.paylisher.com"]
         deepLinkConfig.authRequiredDestinations = ["wallet"]
         deepLinkConfig.debugLogging = true
         config.deepLinkConfig = deepLinkConfig
@@ -214,7 +237,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                     return
                 }
             }
-            completionHandler([.sound, .list, .banner, .badge])
+            completionHandler([.sound, .alert, .badge])
             return
         }
 
@@ -222,13 +245,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         if source == "XSdk" {
             print("[BANK delegate] X SDK mesajı → X SDK'ya forward")
             XSdkSimulator.shared.handleForeground(notification: notification)
-            completionHandler([.sound, .list, .banner, .badge])
+            completionHandler([.sound, .alert, .badge])
             return
         }
 
         // [3] Banka kendi push'u (varsayılan akış)
         print("[BANK delegate] Banka kendi push'u (Paylisher/XSdk değil) — banka template ile gösteriliyor")
-        completionHandler([.sound, .list, .banner, .badge])
+        completionHandler([.sound, .alert, .badge])
     }
 
     // MARK: - Background / Inactive In-App

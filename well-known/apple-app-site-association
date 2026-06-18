@@ -4,7 +4,7 @@
     "details": [
       {
         "appID": "XK757HMDY9.com.paylisher.testios",
-        "paths": [ "/home*", "/products*", "/wallet*", "/profile*" ]
+        "paths": [ "/home*", "/products*", "/campaigns*", "/wallet*", "/profile*" ]
       },
       {
         "appID": "XK757HMDY9.com.SuleymanAydin.DietApp",

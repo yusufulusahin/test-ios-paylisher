@@ -13,7 +13,7 @@ enum DeepLinkTestConfig {
 // MARK: - Navigasyon modeli
 
 enum AppTab: Int, Hashable, CaseIterable {
-    case home, products, wallet, profile
+    case home, products, campaigns, wallet, profile
 }
 
 /// Ürünler sekmesinin iç içe yolları: liste → detay → içerik.
@@ -22,9 +22,25 @@ enum ProductRoute: Hashable {
     case content(String)  // ürün içeriği (en iç ekran)
 }
 
+/// Kampanya sekmesinin iç içe yolları: liste → detay → başvuru (en iç, auth-gate'li).
+enum CampaignRoute: Hashable {
+    case detail(String)   // kampanya slug (ceyiz/konut/altin/cocuk)
+    case apply(String)    // başvuru ekranı
+}
+
 struct NavTarget {
     let tab: AppTab
     var productsPath: [ProductRoute] = []
+    var campaignsPath: [CampaignRoute] = []
+}
+
+/// Studio/keyName üzerinden SDK'nın çözdüğü kampanya verisi (firma tarafı).
+struct ResolvedCampaignInfo {
+    let title: String?
+    let keyName: String?
+    let targetUrl: String?   // iosUrl ?? scheme (firmanın bağladığı hedef)
+    let webUrl: String?
+    let adId: String?
 }
 
 // MARK: - Debug olay modeli
@@ -55,6 +71,8 @@ final class DeepLinkRouter: NSObject, ObservableObject {
     // Navigasyon durumu (UI bunu dinler)
     @Published var selectedTab: AppTab = .home
     @Published var productsPath: [ProductRoute] = []
+    @Published var campaignsPath: [CampaignRoute] = []
+    @Published var resolvedCampaign: ResolvedCampaignInfo?   // keyName'den çözülen son kampanya
     @Published var isAuthenticated: Bool = false   // app login durumu — wallet auth-gate buna bakar
 
     // Debug
@@ -69,10 +87,22 @@ final class DeepLinkRouter: NSObject, ObservableObject {
     // MARK: Deeplink handling (SDK closure'ları buraya yönlendirir — protokol implement edilmez)
 
     func handleReceived(_ deepLink: PaylisherDeepLink, requiresAuth: Bool) {
+        captureResolved(deepLink)
         logEvent(deepLink, kind: requiresAuth ? .auth : .received, requiresAuth: requiresAuth)
         // requiresAuth=true ise henüz yönlenme — auth tamamlanınca SDK bu metodu
         // requiresAuth=false ile tekrar çağırır.
-        if !requiresAuth { navigate(to: deepLink.url) }
+        if !requiresAuth { navigate(deepLink) }
+    }
+
+    /// keyName'den çözülmüş kampanya varsa (campaignData) UI'ya köprüle.
+    private func captureResolved(_ dl: PaylisherDeepLink) {
+        guard let cd = dl.campaignData else { return }
+        DispatchQueue.main.async {
+            self.resolvedCampaign = ResolvedCampaignInfo(
+                title: cd.title, keyName: cd.keyName ?? dl.campaignKeyName,
+                targetUrl: cd.iosUrl ?? cd.scheme, webUrl: cd.webUrl, adId: cd.adId?.oid
+            )
+        }
     }
 
     func handleAuthRequired(_ deepLink: PaylisherDeepLink, completion: @escaping (Bool) -> Void) {
@@ -93,37 +123,48 @@ final class DeepLinkRouter: NSObject, ObservableObject {
 
     // MARK: Navigasyon
 
-    /// Deeplink URL'ini sekme + iç içe yola çevirip uygular.
-    func navigate(to url: URL) {
-        guard let target = Self.parseTarget(url) else { return }
+    /// SDK'nın normalize edilmiş `pathSegments`'ini sekme + iç içe yola çevirir — URL re-parse YOK.
+    func navigate(_ deepLink: PaylisherDeepLink) {
+        guard let target = Self.parseTarget(deepLink) else { return }
         DispatchQueue.main.async {
             self.selectedTab = target.tab
+            // Tam yolu DOĞRUDAN set et. İç içe 2. seviyeyi (içerik/başvuru) detay ekranı kendi
+            // `onAppear`'ında — detay oturduktan SONRA, gecikmeli — push eder; böylece cold-start
+            // dahil (yol UI'dan önce set edilse bile) eşzamanlı çift-push olmaz.
             if target.tab == .products { self.productsPath = target.productsPath }
+            if target.tab == .campaigns { self.campaignsPath = target.campaignsPath }
         }
     }
 
-    static func parseTarget(_ url: URL) -> NavTarget? {
-        let host = (url.host ?? "").lowercased()
-        let segs = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
-        switch host {
-        case "home", "": return NavTarget(tab: .home)
+    // Manuel stack: en üstteki ekranı at (geri butonu / sistem geri).
+    func popProduct() { if !productsPath.isEmpty { productsPath.removeLast() } }
+    func popCampaign() { if !campaignsPath.isEmpty { campaignsPath.removeLast() } }
+
+    static func parseTarget(_ deepLink: PaylisherDeepLink) -> NavTarget? {
+        // ["products","a","content"] — custom scheme + universal link, iOS + Android: hepsi aynı.
+        let segs = deepLink.pathSegments
+        switch segs.first?.lowercased() {
+        case nil, "home": return NavTarget(tab: .home)
         case "products", "product":
-            if let id = segs.first ?? queryValue(url, "id") {
-                if segs.count >= 2, segs[1].lowercased() == "content" {
+            if let id = segs.dropFirst().first ?? deepLink.parameters["id"] {
+                if segs.count >= 3, segs[2].lowercased() == "content" {
                     return NavTarget(tab: .products, productsPath: [.detail(id), .content(id)])
                 }
                 return NavTarget(tab: .products, productsPath: [.detail(id)])
             }
             return NavTarget(tab: .products, productsPath: [])
+        case "campaigns", "campaign":
+            if let slug = segs.dropFirst().first ?? deepLink.parameters["slug"] {
+                if segs.count >= 3, segs[2].lowercased() == "apply" {
+                    return NavTarget(tab: .campaigns, campaignsPath: [.detail(slug), .apply(slug)])
+                }
+                return NavTarget(tab: .campaigns, campaignsPath: [.detail(slug)])
+            }
+            return NavTarget(tab: .campaigns, campaignsPath: [])
         case "wallet": return NavTarget(tab: .wallet)
         case "profile": return NavTarget(tab: .profile)
         default: return NavTarget(tab: .home)
         }
-    }
-
-    private static func queryValue(_ url: URL, _ key: String) -> String? {
-        URLComponents(url: url, resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == key })?.value
     }
 
     // MARK: Auth (app login)
@@ -146,8 +187,9 @@ final class DeepLinkRouter: NSObject, ObservableObject {
         setDeferredStatus("kontrol ediliyor…")
         PaylisherSDK.shared.checkDeferredDeepLink(
             onSuccess: { [weak self] dl in
+                self?.captureResolved(dl)
                 self?.setDeferredStatus("🎯 match: \(dl.url.absoluteString)")
-                self?.navigate(to: dl.url)
+                self?.navigate(dl)
                 self?.addEvent(DeepLinkEvent(time: Date(), kind: .deferred, url: dl.url.absoluteString,
                                              destination: dl.destination, scheme: dl.scheme, jid: dl.jid,
                                              campaignKey: dl.campaignKeyName, campaignTitle: dl.campaignData?.title,
@@ -197,5 +239,58 @@ struct Product: Identifiable {
     static func find(_ id: String) -> Product {
         all.first { $0.id == id } ?? Product(id: id, name: "Ürün \(id.uppercased())",
                                              summary: "Deeplink ile gelen ürün", price: "—")
+    }
+}
+
+// MARK: - Kampanya modeli (Vakıf Katılım "Çeyiz Hesabı" senaryosundan esinli)
+//
+// keyName: bir firmanın Paylisher Studio'da kampanyayı kurunca alacağı anahtar.
+struct Campaign: Identifiable {
+    let slug: String
+    let emoji: String
+    let title: String
+    let tagline: String
+    let summary: String
+    let highlights: [String]
+    let keyName: String
+    var id: String { slug }
+
+    static let all: [Campaign] = [
+        Campaign(slug: "ceyiz", emoji: "💍", title: "Çeyiz Hesabı",
+                 tagline: "Devlet katkılı evlilik birikimi",
+                 summary: "Düzenli biriktir, evlenince devlet katkısını al. Katılım esaslı (faizsiz); birikimin kâr payı ile değerlenir.",
+                 highlights: ["Devlet katkısı: birikimin %20'si (üst sınırlı)",
+                              "Katılım hesabı — faizsiz, kâr payı esaslı",
+                              "18–27 yaş, düzenli aylık ödeme planı",
+                              "Min. birikim süresi sonunda evlilikte ödeme"],
+                 keyName: "CEYIZ2026"),
+        Campaign(slug: "konut", emoji: "🏠", title: "Konut Hesabı",
+                 tagline: "Devlet destekli ev birikimi",
+                 summary: "İlk evin için düzenli biriktir; devlet katkısıyla peşinatını büyüt.",
+                 highlights: ["Devlet katkısı: %20 (üst sınırlı)",
+                              "Katılım esaslı, faizsiz birikim",
+                              "Konut alımında kullanım önceliği"],
+                 keyName: "KONUT2026"),
+        Campaign(slug: "altin", emoji: "🪙", title: "Altın Birikim Hesabı",
+                 tagline: "Gram altın ile biriktir",
+                 summary: "Birikimini gram altına çevir; dalgalanmaya karşı değer biriktir.",
+                 highlights: ["Fiziki/sanal gram altın olarak birikim",
+                              "Dilediğin an TL'ye dönüş",
+                              "Aylık otomatik altın alım talimatı"],
+                 keyName: "ALTIN2026"),
+        Campaign(slug: "cocuk", emoji: "🧸", title: "Geleceğim Çocuk Hesabı",
+                 tagline: "Çocuğun için erken başla",
+                 summary: "Çocuğun 18 yaşına geldiğinde kullanabileceği uzun vadeli birikim.",
+                 highlights: ["Uzun vadeli katılım hesabı",
+                              "Düzenli küçük ödemelerle büyüyen birikim",
+                              "18 yaşında hak sahibine devir"],
+                 keyName: "COCUK2026"),
+    ]
+
+    static func find(_ slug: String) -> Campaign {
+        all.first { $0.slug == slug } ?? Campaign(slug: slug, emoji: "🎁",
+            title: "Kampanya \(slug.uppercased())", tagline: "Deeplink ile gelen kampanya",
+            summary: "Bu kampanya bir deeplink ile açıldı.", highlights: ["Detaylar yakında"],
+            keyName: slug.uppercased())
     }
 }
