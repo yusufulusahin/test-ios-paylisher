@@ -105,7 +105,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Host dietapp'te kanıtlanmış pyl.sh; test için 2 saatlik attribution penceresi.
         config.deferredDeepLinkConfig = PaylisherDeferredDeepLinkConfig()
             .withEnabled(true)
-            .withAPIHost("https://link-eu.paylisher.com/v1/deferred-deeplink")
+            .withAPIHost("https://link.paylisher.com/v1/deferred-deeplink")
             .withAttributionWindow(2 * 60 * 60 * 1000)
             .withIDFA(true)
             .withDebugLogging(true)
